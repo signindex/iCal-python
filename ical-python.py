@@ -39,6 +39,7 @@ class calendarFrame(customtkinter.CTkFrame):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
 
+        self.userid = dict()
         self.userReader()
         self.now = datetime.datetime.now()
         self.todays_calendar = calendar.Calendar()
@@ -137,13 +138,32 @@ class calendarFrame(customtkinter.CTkFrame):
         return event_list_raw
     
     def userReader(self):
-        idfile = open("./userid.txt", 'r')
-        l = idfile.readlines()
-        self.userid = dict()
-        for line in l:
-            key,val = line.split('=')
-            self.userid[key] = val
-        idfile.close()
+        try:
+            idfile = open("./userid.txt", 'r')
+            l = idfile.readlines()
+            for line in l:
+                key,val = line.split('=')
+                self.userid[key] = val
+            idfile.close()
+            self.getiCal() #test
+        except:
+            print('Failed to get user id. Please enter it manually.')
+            self.userid['id'] = input('your email: ')
+            self.userid['pw'] = input('your password: ')
+
+            ans = input('Do you want to save the login data? Y/N: ')
+            while True:
+                if ans == 'Y' or ans == 'y':
+                    idfile_save = open('./userid.txt', 'w')
+                    idfile_save.write("id={0}\npw={1}".format(self.userid['id'], self.userid['pw']))
+                    idfile_save.close()
+                    break
+                elif ans == 'N' or ans == 'n':
+                    break
+                else:
+                    ans = input('Y/N: ')
+
+        
     
     def eventUpdate(self):
         self.event_list = self.getiCal()
@@ -155,7 +175,7 @@ class calendarFrame(customtkinter.CTkFrame):
                 today = linear_date[i]
                 if starttime.date() == today:
                     today_text = self.label_text_list[i//7+1][i%7]
-                    txt = '{0}\n{1} {2}-{3}'.format(today.day, event['title'], starttime.strftime('%H:%M'), endtime.strftime('%H:%M'))
+                    txt = '{0}\n{2}-{3}\n{1}'.format(today.day, event['title'], starttime.strftime('%H:%M'), endtime.strftime('%H:%M'))
 
                     self.label_text_list[i//7+1][i%7] = (txt, self.color_list['event'], self.label_text_list[i//7+1][i%7][2])
                     break
