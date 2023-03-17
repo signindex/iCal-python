@@ -21,6 +21,7 @@ class clockFrame(customtkinter.CTkFrame):
         self.notobold = customtkinter.CTkFont(family='Noto Sans KR', size=150, weight='bold')
         self.day_label = customtkinter.CTkLabel(master=self,anchor='se')
         self.clock_label = customtkinter.CTkLabel(master=self,anchor='sw')
+        #self.clock_label.tag_configure('start', foreground = 'red')
         #self.grid_columnconfigure((0,1), weight=1)
         self.clockUpdate()
 
@@ -39,8 +40,8 @@ class calendarFrame(customtkinter.CTkFrame):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
 
-        self.userid = dict()
-        self.userReader()
+        #self.userid = dict()
+        #self.userReader()
         self.now = datetime.datetime.now()
         self.todays_calendar = calendar.Calendar()
         self.todays_calendar.setfirstweekday(6)
@@ -55,35 +56,29 @@ class calendarFrame(customtkinter.CTkFrame):
         self.color_list = {'offday':'gray50', 'default':'azure', 'sun':'firebrick3', 'sat':'dodger blue', 'event':'OliveDrab1'}
         self.weekday_list = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
-        self.label_list = [[customtkinter.CTkLabel(master=self,pady=20,font=self.cal_font,text='wd') for i in range(7)]]+[[customtkinter.CTkLabel(master=self,anchor='nw',padx=10,font=self.cal_font,text='day',justify='left') for i in range(7)] for j in range(len(self.day_list))]
-        self.label_text_list = []
-        print(len(self.label_list))
+        self.label_list = [[customtkinter.CTkTextbox(master=self,pady=20,font=self.cal_font,height=10) for i in range(7)]]+[[customtkinter.CTkTextbox(master=self,padx=10,font=self.cal_font) for i in range(7)] for j in range(len(self.day_list))]
+        self.event_list = []
 
-        rtn = []
         for i in range(7):
-            self.label_list[0][i].configure(text=self.weekday_list[i], text_color=self.color_list['default'], fg_color='gray15')
-            rtn.append((self.weekday_list[i], self.color_list['default'], 'gray15'))
-        self.label_text_list.append(rtn)
+            self.label_list[0][i].configure(text_color=self.color_list['default'], fg_color='gray15')
+            self.label_list[0][i].insert('end', self.weekday_list[i])
 
         for i in range(len(self.day_list)):
-            rtn = []
             for j in range(7):
                 today = self.day_list[i][j]
                 clr = self.colorPalette(today)
                 if today == self.now.date():
-                    self.label_list[i+1][j].configure(text=today.day, text_color = clr, fg_color = 'gray40')
-                    rtn.append((today.day, clr, 'gray40'))
+                    self.label_list[i+1][j].configure(text_color = clr, fg_color = 'gray40')
                 else:
-                    self.label_list[i+1][j].configure(text=today.day, text_color = clr, fg_color = 'gray30')
-                    rtn.append((today.day, clr, 'gray30'))
-            self.label_text_list.append(rtn)
+                    self.label_list[i+1][j].configure(text_color = clr, fg_color = 'gray30')
+                self.label_list[i+1][j].insert('end', today.day)
 
         for i in range(len(self.day_list)+1):
             for j in range(7):
                 self.label_list[i][j].grid(row=i,column=j,sticky='nsew',padx=2,pady=2)
         
-        self.eventUpdate()
-        self.calendarUpdate()
+        #self.eventUpdate()
+        #self.calendarUpdate()
         
 
     def calendarUpdate(self):
@@ -98,8 +93,7 @@ class calendarFrame(customtkinter.CTkFrame):
                 self.label_list[i][j].configure(fg_color=current_value[2], text = current_value[0], text_color = current_value[1])
         
         self.after(30000,self.calendarUpdate)
-
-
+        
     def colorPalette(self, d):
         if d.month != self.now.month:
             return self.color_list['offday']
@@ -163,8 +157,6 @@ class calendarFrame(customtkinter.CTkFrame):
                 else:
                     ans = input('Y/N: ')
 
-        
-    
     def eventUpdate(self):
         self.event_list = self.getiCal()
         linear_date = [j for sub in self.day_list for j in sub]
