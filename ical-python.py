@@ -58,7 +58,7 @@ class calendarFrame(customtkinter.CTkFrame):
         rtn = []
         for i in range(7):
             self.label_list[0][i].configure(text=self.weekday_list[i], text_color=self.color_list['default'], fg_color='gray15')
-            rtn.append(textManager(self.weekday_list[i], (self.color_list['default'], self.color_list['event']), 'gray15'))
+            rtn.append(textManager(self.weekday_list[i], (self.color_list['default'], self.color_list['event']), ('gray15', 'gray15')))
         self.label_text_list.append(rtn)
 
         for i in range(len(self.day_list)):
@@ -67,12 +67,10 @@ class calendarFrame(customtkinter.CTkFrame):
                 today = self.day_list[i][j]
                 clr = self.colorPalette(today)
                 ec = self.color_list['event']
-                if today == self.now.date():
-                    self.label_list[i+1][j].configure(text=today.day, text_color = clr, fg_color = 'gray40')
-                    rtn.append(textManager(today.day, (clr,ec), 'gray40'))
-                else:
-                    self.label_list[i+1][j].configure(text=today.day, text_color = clr, fg_color = 'gray30')
-                    rtn.append(textManager(today.day, (clr,ec), 'gray30'))
+                fgc = ('gray40', 'gray30')
+                self.label_list[i+1][j].configure(text=today.day, text_color = clr)
+                rtn.append(textManager(today, (clr,ec), fgc))
+
             self.label_text_list.append(rtn)
 
         for i in range(len(self.day_list)+1):
@@ -89,10 +87,11 @@ class calendarFrame(customtkinter.CTkFrame):
         self.todays_calendar.setfirstweekday(6)
         self.day_list = self.todays_calendar.monthdatescalendar(self.now.year, self.now.month)
 
-        for i in range(len(self.day_list)+1):
+        for i in range(len(self.day_list)):
             for j in range(7):
-                current_value = self.label_text_list[i][j]
-                self.label_list[i][j].configure(text = current_value.getText(), fg_color=current_value.fgc, text_color=current_value.tc)
+                current_value = self.label_text_list[i+1][j]
+                color = current_value.getColor()
+                self.label_list[i+1][j].configure(text = current_value.getText(), fg_color=color[1], text_color=color[0])
         
         self.after(30000,self.calendarUpdate)
 
@@ -145,14 +144,15 @@ class eventManager:
 class textManager:
     def __init__(self, day, text_color, foreground_color):
         self.events = []
-        self.day = day
+        self.today = day
         self.tc = text_color[0]
         self.__text_color = text_color # [w/ events, w/o events]
-        self.fgc = foreground_color
+        self.__foreground_color = foreground_color
 
     def addEvent(self, ev):
         self.events.append(ev)
-        self.tc = self.__text_color[1]
+        if ev.end.date() >= datetime.datetime.now().date():
+            self.tc = self.__text_color[1]
 
     def clearEvent(self):
         self.events = []
@@ -160,10 +160,16 @@ class textManager:
     
     def getText(self):
         self.events.sort()
-        rtn = str(self.day)+'\n'
+        rtn = str(self.today.day)+'\n'
         for e in self.events:
             rtn += e.txt
         return rtn
+
+    def getColor(self):
+        if self.today == datetime.datetime.now().date():
+            return (self.tc, self.__foreground_color[0])
+        return (self.tc, self.__foreground_color[1])
+        
 
 class todoFrame(customtkinter.CTkFrame):
     def __init__(self, master, **kwargs):
