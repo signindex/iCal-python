@@ -1,6 +1,4 @@
-import click
-import sys
-from pyicloud import PyiCloudService
+import calendarParse
 
 import tkinter
 import customtkinter
@@ -40,7 +38,6 @@ class calendarFrame(customtkinter.CTkFrame):
         super().__init__(master, **kwargs)
 
         self.userid = dict()
-        self.userReader()
         self.now = datetime.datetime.now()
         self.todays_calendar = calendar.Calendar()
         self.todays_calendar.setfirstweekday(6)
@@ -55,14 +52,13 @@ class calendarFrame(customtkinter.CTkFrame):
         self.color_list = {'offday':'gray50', 'default':'azure', 'sun':'firebrick3', 'sat':'dodger blue', 'event':'OliveDrab1'}
         self.weekday_list = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
-        self.label_list = [[customtkinter.CTkLabel(master=self,pady=20,font=self.cal_font,text='wd') for i in range(7)]]+[[customtkinter.CTkLabel(master=self,anchor='nw',padx=10,font=self.cal_font,text='day',justify='left') for i in range(7)] for j in range(len(self.day_list))]
+        self.label_list = [[customtkinter.CTkLabel(master=self,pady=20,font=self.cal_font,text='wd') for i in range(7)]]+[[customtkinter.CTkLabel(master=self,anchor='nw',padx=10,font=self.cal_font,text='day',justify='left', wraplength=200) for i in range(7)] for j in range(len(self.day_list))]
         self.label_text_list = []
-        print(len(self.label_list))
 
         rtn = []
         for i in range(7):
             self.label_list[0][i].configure(text=self.weekday_list[i], text_color=self.color_list['default'], fg_color='gray15')
-            rtn.append((self.weekday_list[i], self.color_list['default'], 'gray15'))
+            rtn.append(textManager(self.weekday_list[i], (self.color_list['default'], self.color_list['event']), 'gray15'))
         self.label_text_list.append(rtn)
 
         for i in range(len(self.day_list)):
@@ -70,12 +66,13 @@ class calendarFrame(customtkinter.CTkFrame):
             for j in range(7):
                 today = self.day_list[i][j]
                 clr = self.colorPalette(today)
+                ec = self.color_list['event']
                 if today == self.now.date():
                     self.label_list[i+1][j].configure(text=today.day, text_color = clr, fg_color = 'gray40')
-                    rtn.append((today.day, clr, 'gray40'))
+                    rtn.append(textManager(today.day, (clr,ec), 'gray40'))
                 else:
                     self.label_list[i+1][j].configure(text=today.day, text_color = clr, fg_color = 'gray30')
-                    rtn.append((today.day, clr, 'gray30'))
+                    rtn.append(textManager(today.day, (clr,ec), 'gray30'))
             self.label_text_list.append(rtn)
 
         for i in range(len(self.day_list)+1):
@@ -95,7 +92,7 @@ class calendarFrame(customtkinter.CTkFrame):
         for i in range(len(self.day_list)+1):
             for j in range(7):
                 current_value = self.label_text_list[i][j]
-                self.label_list[i][j].configure(fg_color=current_value[2], text = current_value[0], text_color = current_value[1])
+                self.label_list[i][j].configure(text = current_value.getText(), fg_color=current_value.fgc, text_color=current_value.tc)
         
         self.after(30000,self.calendarUpdate)
 
@@ -109,80 +106,28 @@ class calendarFrame(customtkinter.CTkFrame):
             return self.color_list['sat']
         return self.color_list['default']
     
-    def getiCal(self):
-        print("Py iCloud Services")
-        api = PyiCloudService(self.userid['id'], self.userid['pw'])
-
-        if api.requires_2fa:
-            print("Two-factor authentication required. Your trusted devices are:")
-
-            devices = api.trusted_devices
-            for i, device in enumerate(devices):
-                print(
-                    "  %s: %s"
-                    % (i, device.get("deviceName", "SMS to %s" % device.get("phoneNumber")))
-                )
-
-            device = click.prompt("Which device would you like to use?", default=0)
-            device = devices[device]
-            if not api.send_verification_code(device):
-                print("Failed to send verification code")
-                sys.exit(1)
-
-            code = click.prompt("Please enter validation code")
-            if not api.validate_verification_code(device, code):
-                print("Failed to verify verification code")
-                sys.exit(1)
-
-        event_list_raw = api.calendar.events()
-        return event_list_raw
-    
-    def userReader(self):
-        try:
-            idfile = open("./userid.txt", 'r')
-            l = idfile.readlines()
-            for line in l:
-                key,val = line.split('=')
-                self.userid[key] = val
-            idfile.close()
-            self.getiCal() #test
-        except:
-            print('Failed to get user id. Please enter it manually.')
-            self.userid['id'] = input('your email: ')
-            self.userid['pw'] = input('your password: ')
-
-            ans = input('Do you want to save the login data? Y/N: ')
-            while True:
-                if ans == 'Y' or ans == 'y':
-                    idfile_save = open('./userid.txt', 'w')
-                    idfile_save.write("id={0}\npw={1}".format(self.userid['id'], self.userid['pw']))
-                    idfile_save.close()
-                    break
-                elif ans == 'N' or ans == 'n':
-                    break
-                else:
-                    ans = input('Y/N: ')
-
-        
-    
     def eventUpdate(self):
-        self.event_list = self.getiCal()
+        for i in self.label_text_list:
+            for j in i:
+                j.clearEvent()
+        
+        self.event_list = calendarParse.getiCal()
         linear_date = [j for sub in self.day_list for j in sub]
         for event in self.event_list:
             for i in range(len(linear_date)):
-                starttime = datetime.datetime(*event['startDate'][1:6])
-                endtime = datetime.datetime(*event['endDate'][1:6])
+                starttime = event.start
+                endtime = event.end
                 today = linear_date[i]
                 if starttime.date() == today:
                     today_text = self.label_text_list[i//7+1][i%7]
-                    txt = '{0}\n{2}-{3}\n{1}'.format(today.day, event['title'], starttime.strftime('%H:%M'), endtime.strftime('%H:%M'))
-
-                    self.label_text_list[i//7+1][i%7] = (txt, self.color_list['event'], self.label_text_list[i//7+1][i%7][2])
+                    txt = '\n{1}-{2}\n{0}'.format(event.summary, starttime.strftime('%H:%M'), endtime.strftime('%H:%M'))
+                    new_event = eventManager(starttime, endtime, txt)
+                    today_text.addEvent(new_event)
                     break
-
+        print('event updated')
         self.after(60000, self.eventUpdate)
 
-class event:
+class eventManager:
     def __init__(self, st, et, txt):
         self.start = st
         self.end = et
@@ -198,18 +143,27 @@ class event:
         return self.start < other.start
 
 class textManager:
-    def __init__(self):
+    def __init__(self, day, text_color, foreground_color):
         self.events = []
-    
+        self.day = day
+        self.tc = text_color[0]
+        self.__text_color = text_color # [w/ events, w/o events]
+        self.fgc = foreground_color
+
     def addEvent(self, ev):
         self.events.append(ev)
+        self.tc = self.__text_color[1]
+
+    def clearEvent(self):
+        self.events = []
+        self.tc = self.__text_color[0]
     
-    def __repr__(self) -> str:
+    def getText(self):
         self.events.sort()
-        rtn = ''
+        rtn = str(self.day)+'\n'
         for e in self.events:
-            rtn += e.txt+'\n'
-        return rtn[:-1]
+            rtn += e.txt
+        return rtn
 
 class todoFrame(customtkinter.CTkFrame):
     def __init__(self, master, **kwargs):
@@ -225,7 +179,7 @@ class App(customtkinter.CTk):
         # configure window
         self.title("iCal")
         self.geometry(f"{1920}x{1080}")
-        self.attributes('-fullscreen', True)
+        self.attributes('-fullscreen', False)
 
         self.grid_rowconfigure(1,weight = 2)
         self.grid_columnconfigure(0,weight=1)
